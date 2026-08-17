@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import cryptoRoutes from "./routes/cryptoRoutes.js";
+import marketRoutes from "./routes/marketRoutes.js";
 
 dotenv.config();
 
@@ -16,6 +17,8 @@ app.use(express.json());
 
 // Routes
 app.use("/api/crypto", cryptoRoutes);
+
+app.use("/api/markets", marketRoutes);
 
 
 // Health check
