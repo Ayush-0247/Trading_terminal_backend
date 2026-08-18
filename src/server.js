@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 
 import cryptoRoutes from "./routes/cryptoRoutes.js";
 import marketRoutes from "./routes/marketRoutes.js";
+import stockRoutes from "./routes/stockRoutes.js";
+
 
 dotenv.config();
 
@@ -20,6 +22,7 @@ app.use("/api/crypto", cryptoRoutes);
 
 app.use("/api/markets", marketRoutes);
 
+app.use("/api/stocks", stockRoutes);
 
 // Health check
 app.get("/", (req, res) => {
