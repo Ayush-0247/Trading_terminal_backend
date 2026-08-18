@@ -72,6 +72,7 @@ export const getMarketPrice = async (req, res) => {
 };
 
 //get top assets
+//http://localhost:5000/api/markets/top-assets
 const sleep = (ms) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -195,7 +196,7 @@ const getCommodityData = async (asset) => {
   };
 };
 
-
+// http://localhost:5000/api/markets/top-assets
 export const getTopAssets = async (
   req,
   res
