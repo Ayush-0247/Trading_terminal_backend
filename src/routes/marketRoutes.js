@@ -4,7 +4,8 @@ import {
   getMarketPrice,
   getMarketDetails,
   getMarketChart,
-  searchMarketAssets
+  searchMarketAssets,
+   getTopAssets,
 } from "../controllers/marketController.js";
 
 const router = express.Router();
@@ -14,6 +15,11 @@ const router = express.Router();
 router.get(
   "/search",
   searchMarketAssets
+);
+
+router.get(
+  "/top-assets",
+  getTopAssets
 );
 
 
