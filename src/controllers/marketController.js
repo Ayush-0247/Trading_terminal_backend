@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const TWELVE_DATA_URL = "https://api.twelvedata.com";
+const ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query";
 
 const getAssetType = (symbol) => {
   if (
@@ -68,6 +69,270 @@ export const getMarketPrice = async (req, res) => {
       message: "Failed to fetch market price"
     });
   }
+};
+
+//get top assets
+const sleep = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+
+const getCommodityData = async (asset) => {
+
+  const params = {
+    function: asset.function,
+    apikey: process.env.ALPHA_VANTAGE_API_KEY
+  };
+
+  // Gold / Silver require symbol
+  if (asset.symbol) {
+    params.symbol = asset.symbol;
+  }
+
+  // These commodity APIs use interval
+  if (asset.interval) {
+    params.interval = asset.interval;
+  }
+
+  const response = await axios.get(
+    ALPHA_VANTAGE_URL,
+    { params }
+  );
+
+  const result = response.data;
+
+  // Alpha Vantage errors
+  if (result["Error Message"]) {
+    throw new Error(
+      result["Error Message"]
+    );
+  }
+
+  // Rate limit / premium restriction
+  if (result["Information"]) {
+    throw new Error(
+      result["Information"]
+    );
+  }
+
+  /*
+   * Alpha Vantage commodity responses
+   * generally contain:
+   *
+   * data: [
+   *   {
+   *     date: "...",
+   *     value: "..."
+   *   }
+   * ]
+   */
+
+  if (
+    !result.data ||
+    !Array.isArray(result.data)
+  ) {
+    throw new Error(
+      "Invalid commodity response"
+    );
+  }
+
+  const values = result.data
+    .map((item) => ({
+      date: item.date,
+      value: Number(item.value)
+    }))
+    .filter(
+      (item) =>
+        item.date &&
+        !Number.isNaN(item.value)
+    );
+
+  if (values.length < 2) {
+    throw new Error(
+      "Not enough historical data"
+    );
+  }
+
+  // Newest first
+  values.sort(
+    (a, b) =>
+      new Date(b.date) -
+      new Date(a.date)
+  );
+
+  const latest = values[0].value;
+  const previous = values[1].value;
+
+  if (
+    Number.isNaN(latest) ||
+    Number.isNaN(previous) ||
+    previous === 0
+  ) {
+    throw new Error(
+      "Invalid commodity price data"
+    );
+  }
+
+  const change =
+    latest - previous;
+
+  const percentChange =
+    (change / previous) * 100;
+
+  return {
+    name: asset.name,
+    symbol: asset.symbol,
+    type: "commodity",
+    price: Number(
+      latest.toFixed(4)
+    ),
+    change: Number(
+      change.toFixed(4)
+    ),
+    percentChange: Number(
+      percentChange.toFixed(2)
+    ),
+    date: values[0].date
+  };
+};
+
+
+export const getTopAssets = async (
+  req,
+  res
+) => {
+
+  try {
+
+    const assets = [
+
+      {
+        name: "Gold",
+        symbol: "XAU",
+        function:
+          "GOLD_SILVER_HISTORY",
+        interval: "daily"
+      },
+
+      {
+        name: "Silver",
+        symbol: "XAG",
+        function:
+          "GOLD_SILVER_HISTORY",
+        interval: "daily"
+      },
+
+      {
+        name: "WTI Crude Oil",
+        symbol: "WTI",
+        function: "WTI",
+        interval: "daily"
+      },
+
+      {
+        name: "Brent Crude Oil",
+        symbol: "BRENT",
+        function: "BRENT",
+        interval: "daily"
+      },
+
+      {
+        name: "Natural Gas",
+        symbol: "NATURAL_GAS",
+        function: "NATURAL_GAS",
+        interval: "daily"
+      },
+
+      {
+        name: "Copper",
+        symbol: "COPPER",
+        function: "COPPER",
+        interval: "monthly"
+      },
+
+      {
+        name: "Aluminium",
+        symbol: "ALUMINUM",
+        function: "ALUMINUM",
+        interval: "monthly"
+      }
+
+    ];
+
+
+    const data = [];
+    const failed = [];
+
+
+    /*
+     * IMPORTANT:
+     *
+     * Do NOT use Promise.all()
+     * because Alpha Vantage free API
+     * allows only limited request frequency.
+     */
+
+    for (const asset of assets) {
+
+      try {
+
+        const result =
+          await getCommodityData(asset);
+
+        data.push(result);
+
+      } catch (error) {
+
+        failed.push({
+          name: asset.name,
+          symbol: asset.symbol,
+          error:
+            error?.message ||
+            "Unknown error"
+        });
+
+      }
+
+      /*
+       * Alpha Vantage free API:
+       * keep requests ~1 second apart.
+       */
+
+      await sleep(1100);
+    }
+
+
+    return res.status(200).json({
+
+      success: true,
+
+      count: data.length,
+
+      data,
+
+      failed
+
+    });
+
+
+  } catch (error) {
+
+    console.error(
+      "TOP ASSETS ERROR:",
+      error.response?.data ||
+      error.message
+    );
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        "Failed to fetch top global assets"
+
+    });
+
+  }
+
 };
 
 
