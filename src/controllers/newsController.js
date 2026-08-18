@@ -1,91 +1,182 @@
-import axios from "axios";
+import {
+  fetchNews,
+  fetchAssetNews,
+} from "../services/newsService.js";
 
-const GNEWS_URL = "https://gnews.io/api/v4/search";
 
-export const getNews = async (req, res) => {
+export const getGlobalNews = async (
+  req,
+  res
+) => {
+
   try {
-    const { query } = req.params;
 
-    if (!query || !query.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "News query is required",
-      });
-    }
+    const {
+      q = "world",
+      lang = "en",
+      max = 10,
+      from,
+      to,
+    } = req.query;
 
-    const response = await axios.get(GNEWS_URL, {
-      params: {
-        q: query,
-        lang: "en",
-        max: 10,
-        sortby: "publishedAt",
-        apikey: process.env.GNEWS_API_KEY,
-      },
+
+    const result = await fetchNews({
+      query: q,
+      lang,
+      max: Math.min(Number(max), 10),
+      from,
+      to,
     });
 
-    const result = response.data;
-
-    const articles = (result.articles || []).map(
-      (article, index) => ({
-        id: `${query}-${index}`,
-
-        title: article.title,
-
-        description: article.description,
-
-        content: article.content,
-
-        image: article.image,
-
-        url: article.url,
-
-        source: article.source?.name || "Unknown",
-
-        sourceUrl: article.source?.url || null,
-
-        publishedAt: article.publishedAt,
-
-        category: "global",
-      })
-    );
 
     return res.status(200).json({
+
       success: true,
 
-      query,
+      type: "global",
 
-      count: articles.length,
+      query: q,
 
-      data: articles,
+      count: result.articles.length,
+
+      totalArticles:
+        result.totalArticles,
+
+      data: result.articles,
+
     });
+
 
   } catch (error) {
 
     console.error(
-      "GNEWS ERROR:",
-      error.response?.data || error.message
+      "GLOBAL NEWS ERROR:",
+      error.response?.data ||
+        error.message
     );
 
-    if (error.response?.status === 403) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "GNews API limit reached or API key is invalid",
-      });
-    }
 
-    if (error.response?.status === 400) {
-      return res.status(400).json({
-        success: false,
-        message:
-          error.response?.data?.errors?.join(", ") ||
-          "Invalid GNews request",
-      });
-    }
+    return res.status(
+      error.response?.status === 403
+        ? 403
+        : 500
+    ).json({
 
-    return res.status(500).json({
       success: false,
-      message: "Failed to fetch news",
+
+      message:
+        error.response?.data?.errors?.join(
+          ", "
+        ) ||
+        "Failed to fetch global news",
+
     });
+
+  }
+};
+
+
+export const getAssetNews = async (
+  req,
+  res
+) => {
+
+  try {
+
+    const {
+      type,
+      symbol,
+    } = req.params;
+
+
+    const validTypes = [
+      "stock",
+      "crypto",
+      "commodity",
+    ];
+
+
+    if (!validTypes.includes(type)) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Invalid asset type. Use stock, crypto or commodity",
+
+      });
+
+    }
+
+
+    if (!symbol) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Asset symbol is required",
+
+      });
+
+    }
+
+
+    const result =
+      await fetchAssetNews({
+        type,
+        symbol:
+          symbol.toUpperCase(),
+        max: 10,
+      });
+
+
+    return res.status(200).json({
+
+      success: true,
+
+      type,
+
+      symbol:
+        symbol.toUpperCase(),
+
+      count:
+        result.articles.length,
+
+      totalArticles:
+        result.totalArticles,
+
+      data: result.articles,
+
+    });
+
+
+  } catch (error) {
+
+    console.error(
+      "ASSET NEWS ERROR:",
+      error.response?.data ||
+        error.message
+    );
+
+
+    return res.status(
+      error.response?.status === 403
+        ? 403
+        : 500
+    ).json({
+
+      success: false,
+
+      message:
+        error.response?.data?.errors?.join(
+          ", "
+        ) ||
+        "Failed to fetch asset news",
+
+    });
+
   }
 };

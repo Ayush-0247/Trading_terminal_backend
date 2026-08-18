@@ -1,11 +1,22 @@
 import express from "express";
 
 import {
-  getNews,
+  getGlobalNews,
+  getAssetNews,
 } from "../controllers/newsController.js";
 
 const router = express.Router();
 
-router.get("/:query", getNews);
+
+// Global news
+router.get("/", getGlobalNews);
+
+
+// Asset-specific news
+router.get(
+  "/asset/:type/:symbol",
+  getAssetNews
+);
+
 
 export default router;
